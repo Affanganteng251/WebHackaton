@@ -57,13 +57,28 @@ const worst = (f) => Math.max(...f.cities.map((c) => c.aqi));
 let fires = [],
   query = "",
   markers = {};
-const map = L.map("map").setView([-2.2, 117.2], 5);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  attribution: "&copy; OpenStreetMap &copy; CARTO",
-  maxZoom: 18,
+// Peta difokuskan ke Pulau Kalimantan
+const KALIMANTAN_BOUNDS = [
+  [-4.8, 108.5],
+  [4.6, 119.5],
+];
+const map = L.map("map", {
+  minZoom: 5,
+  maxBounds: [
+    [-9, 104],
+    [9, 124],
+  ],
+}).fitBounds(KALIMANTAN_BOUNDS);
+// Peta dasar langsung dari server tile resmi OpenStreetMap
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+  maxZoom: 19,
 }).addTo(map);
+L.control.scale({ metric: true, imperial: false }).addTo(map);
 const fireLayer = L.layerGroup().addTo(map);
 const cityLayer = L.layerGroup().addTo(map);
+const hotspotLayer = L.layerGroup().addTo(map);
 
 const visible = () =>
   fires.filter((f) =>
@@ -92,6 +107,7 @@ async function load() {
         .replace(".", ":") + " WIB";
     $("#sample-note").textContent = CONFIG.USE_SAMPLE ? "(data contoh)" : "";
     drawMap();
+    drawHotspots(data.hotspots || []);
     drawList();
     drawAlerts();
     drawNews(data.news || []);
@@ -131,6 +147,23 @@ function drawMap() {
         .addTo(cityLayer),
     );
   });
+}
+
+// Titik merah = hotspot (titik panas) satelit
+function drawHotspots(list) {
+  hotspotLayer.clearLayers();
+  const canvas = L.canvas({ padding: 0.5 });
+  list.forEach((h) =>
+    L.circleMarker([h.lat, h.lng], {
+      renderer: canvas,
+      radius: 3.5,
+      color: "#fff",
+      weight: 0.8,
+      fillColor: "#e11d1d",
+      fillOpacity: 0.9,
+      interactive: false,
+    }).addTo(hotspotLayer),
+  );
 }
 
 function drawList() {
@@ -294,6 +327,8 @@ $("#province-grid").addEventListener("click", (e) => {
 // Lapisan AQI, muat ulang, pencarian
 $("#toggle-aqi").onchange = (e) =>
   e.target.checked ? cityLayer.addTo(map) : map.removeLayer(cityLayer);
+$("#toggle-hotspot").onchange = (e) =>
+  e.target.checked ? hotspotLayer.addTo(map) : map.removeLayer(hotspotLayer);
 $("#refresh").onclick = load;
 $("#search-box").addEventListener("input", (e) => {
   query = e.target.value.trim().toLowerCase();

@@ -3,15 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Siaga Api | Pemantau Kebakaran Hutan Indonesia</title>
+    <title>Siaga Api | Pemantau Kebakaran Hutan Kalimantan</title>
     <meta
       name="description"
-      content="Pantau titik api, kebakaran aktif, dan dampaknya pada kualitas udara di seluruh Indonesia."
+      content="Pantau titik api, kebakaran aktif, dan dampaknya pada kualitas udara di Pulau Kalimantan."
     />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>"
+    />
     <link
       href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap"
       rel="stylesheet"
@@ -29,7 +33,7 @@
   <body>
     <!-- Navbar start -->
     <nav class="navbar">
-      <a href="#peta" class="navbar-logo">siaga<span>api</span>.</a>
+      <a href="#peta" class="navbar-logo">PHYRA<span></span></a>
 
       <div class="navbar-nav" id="navbar-nav">
         <a href="#peta">Peta &amp; Data Kualitas Udara</a>
@@ -62,7 +66,7 @@
     <!-- Peta start -->
     <section class="hero" id="peta">
       <aside class="bulletin">
-        <h1>Peta kebakaran hutan Indonesia</h1>
+        <h1>Peta kebakaran hutan Kalimantan</h1>
         <p class="stamp">
           Diperbarui <time id="updated">–</time>
           <span id="sample-note"></span>
@@ -80,18 +84,75 @@
         <div
           id="map"
           role="region"
-          aria-label="Peta titik api di Indonesia"
+          aria-label="Peta titik api di Kalimantan"
         ></div>
         <label class="layer-toggle"
           ><input type="checkbox" id="toggle-aqi" checked /> Kualitas udara
           kota</label
         >
+        <label class="layer-toggle hotspot-toggle"
+          ><input type="checkbox" id="toggle-hotspot" checked /> Titik panas
+          (hotspot)</label
+        >
+        <label class="layer-toggle zone-toggle"
+          ><input type="checkbox" id="toggle-zone" checked /> Area udara
+          berbahaya</label
+        >
+        <p class="hotspot-note">
+          <i></i>Titik merah: sebaran hotspot (ilustrasi, proporsional dari data
+          SiPongi).
+        </p>
+        <p class="zone-legend">
+          <span></span>Area udara berbahaya (AQI di atas 100). Luasnya hanya
+          perkiraan, bukan pemodelan sebaran asap.
+        </p>
       </div>
     </section>
     <!-- Peta end -->
 
     <!-- Skala AQI (di bawah peta) -->
     <div class="legend under-map" id="legend" aria-label="Skala AQI"></div>
+
+    <!-- Misi start -->
+    <section class="section mission" id="misi">
+      <h2>
+        Memantau api dan perubahan lahan sejak dini, bersama warga sekitar hutan
+        dan gambut
+      </h2>
+      <p class="lead">
+        Warga di sekitar hutan dan lahan gambut yang terdampak kebakaran dan
+        deforestasi sering sulit memantau titik api dan alih fungsi lahan sejak
+        dini. Siaga Api menyatukan pemantauan dan laporan warga di satu tempat.
+      </p>
+      <ol class="flow">
+        <li>
+          <a href="#peta"
+            ><span class="ico"><i data-feather="eye"></i></span>
+            <h3>Pantau</h3>
+            <p>Lihat titik api dan kualitas udara di peta.</p></a
+          >
+        </li>
+        <li>
+          <a href="#berita"
+            ><span class="ico"><i data-feather="bell"></i></span>
+            <h3>Waspada</h3>
+            <p>
+              Cek jarak api dari tempat Anda dan dapatkan saran tindakan.
+            </p></a
+          >
+        </li>
+        <li>
+          <a href="#lapor"
+            ><span class="ico"><i data-feather="users"></i></span>
+            <h3>Libatkan warga</h3>
+            <p>
+              Laporkan api, asap, atau pembukaan lahan dengan foto dan lokasi.
+            </p></a
+          >
+        </li>
+      </ol>
+    </section>
+    <!-- Misi end -->
 
     <!-- Provinsi start -->
     <section class="section" id="provinsi">
@@ -107,14 +168,64 @@
 
     <!-- Berita & Peringatan start -->
     <section class="section" id="berita">
-      <h2>Berita dan peringatan dini</h2>
+      <h2>Berita dan Peringatan Dini</h2>
       <p class="lead">
-        Daerah siaga diurutkan dari udara terburuk. Angka di samping nama kota.
+        Kabar terbaru tentang kebakaran hutan, dan peringatan dini untuk daerah
+        yang udaranya berbahaya.
       </p>
-      <h3 class="sub-h">Daerah siaga</h3>
+
+      <!-- A. Berita -->
+      <h3 class="part-h" id="berita-a"><span>A</span> Berita</h3>
+      <div class="trend">
+        <i data-feather="trending-up" aria-hidden="true"></i>
+        <div
+          class="tchips"
+          id="news-topics"
+          role="group"
+          aria-label="Topik berita"
+        ></div>
+      </div>
+      <div class="news-grid" id="news"></div>
+
+      <!-- B. Peringatan Dini -->
+      <h3 class="part-h" id="peringatan-dini">
+        <span>B</span> Peringatan Dini
+      </h3>
+      <p class="lead">
+        Daerah siaga diurutkan dari udara terburuk. Angka di samping nama kota
+        adalah AQI&#8314; US.
+      </p>
+      <div class="locate" id="locate">
+        <div>
+          <h3>Seberapa dekat api dari Anda?</h3>
+          <p>
+            Cek jarak Anda ke titik api terdekat dan kualitas udara di kota
+            terdekat, lengkap dengan saran tindakan.
+          </p>
+        </div>
+        <div class="locate-actions">
+          <button type="button" class="btn" id="loc-btn">
+            <i data-feather="crosshair"></i> Cek lokasi saya
+          </button>
+          <label class="loc-pick"
+            >atau pilih lokasi
+            <select id="loc-pick">
+              <option value="">Pilih kota…</option>
+            </select>
+          </label>
+        </div>
+        <p id="loc-status" role="status"></p>
+        <div id="loc-result" aria-live="polite"></div>
+      </div>
+
+      <h4 class="sub-h">Daerah siaga</h4>
+      <div
+        class="filters"
+        id="alert-filters"
+        role="group"
+        aria-label="Filter tingkat peringatan"
+      ></div>
       <ul class="alerts" id="alerts"></ul>
-      <h3 class="sub-h">Berita terkini</h3>
-      <ul class="news" id="news"></ul>
     </section>
     <!-- Berita & Peringatan end -->
 
@@ -1032,34 +1143,72 @@
       </p>
       <div class="lapor-grid">
         <form id="report-form" class="report">
+          <fieldset class="types wide">
+            <legend>Apa yang Anda lihat?</legend>
+            <label
+              ><input type="radio" name="jenis" value="api" required /><span
+                >Api atau asap</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="jenis" value="lahan" /><span
+                >Pembukaan atau alih fungsi lahan</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="jenis" value="gambut" /><span
+                >Gambut kering atau terbakar</span
+              ></label
+            >
+          </fieldset>
           <div class="input-group">
             <i data-feather="user"></i
             ><input type="text" name="nama" placeholder="Nama" required />
           </div>
           <div class="input-group">
+            <i data-feather="phone"></i
+            ><input type="tel" name="hp" placeholder="No. HP (opsional)" />
+          </div>
+          <div class="input-group wide">
             <i data-feather="map-pin"></i
             ><input
               type="text"
               name="lokasi"
-              placeholder="Lokasi (desa, kecamatan, kabupaten)"
+              placeholder="Lokasi (desa, kecamatan, kabupaten, atau koordinat)"
               required
             />
-          </div>
-          <div class="input-group">
-            <i data-feather="phone"></i
-            ><input type="tel" name="hp" placeholder="No. HP" />
+            <button type="button" class="link loc-gps" id="loc-gps">
+              Gunakan lokasi saya
+            </button>
           </div>
           <div class="input-group wide">
             <i data-feather="file-text"></i
             ><textarea
               name="deskripsi"
               rows="3"
-              placeholder="Apa yang Anda lihat? Misalnya api, asap tebal, atau lahan yang terbakar"
+              placeholder="Ceritakan singkat: seberapa luas, sejak kapan, apakah ada asap tebal"
               required
             ></textarea>
           </div>
+          <div class="wide photo-row">
+            <label class="photo-btn"
+              ><i data-feather="camera"></i> Tambah foto (opsional)
+              <input
+                type="file"
+                id="photo"
+                accept="image/*"
+                capture="environment"
+              />
+            </label>
+            <img id="photo-prev" alt="Pratinjau foto laporan" hidden />
+          </div>
           <button type="submit" class="btn">Kirim laporan</button>
           <p id="report-status" role="status"></p>
+          <p id="net-note" class="net-note wide" hidden>
+            Anda sedang offline. Laporan disimpan di perangkat dan dikirim
+            otomatis saat tersambung.
+          </p>
+          <div id="report-track" class="wide" aria-live="polite"></div>
         </form>
         <aside class="support">
           <h3>Butuh bantuan segera?</h3>
@@ -1086,7 +1235,7 @@
 
       <div class="footer-content">
         <div class="footer-brand">
-          <h2>siaga<span>api</span>.</h2>
+          <h2>PHYRA<span></span></h2>
           <p>Bersama memantau dan melindungi langit Indonesia.</p>
         </div>
 
@@ -1109,8 +1258,8 @@
 
         <div class="footer-bottom">
           <p>
-            Siaga Api &copy; 2026. Proyek hackathon. Titik api dari data
-            satelit, kualitas udara dari stasiun pemantau.
+            PHYRA &copy; 2026. Proyek hackathon. Titik api dari data satelit,
+            kualitas udara dari stasiun pemantau.
           </p>
         </div>
       </div>
@@ -1302,6 +1451,8 @@
       feather.replace();
     </script>
     <script src="js/data.js"></script>
+    <script src="js/peringatan.js"></script>
+    <script src="js/lapor.js"></script>
     <script src="js/script.js"></script>
   </body>
 </html>
