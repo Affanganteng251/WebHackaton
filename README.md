@@ -62,7 +62,7 @@ Diagram ini menggambarkan desain yang dituju. Jalur notebook ML menuju database/
 
 ## Bagaimana Data ML Diproses
 
-Notebook utama: [`model_risiko_titik_api_kalimantan_integrated.ipynb`](.PHYRA/model_risiko_titik_api_kalimantan_integrated.ipynb).
+Notebook utama: [`model_risiko_titik_api_kalimantan_integrated.ipynb`](PHYRA/model_risiko_titik_api_kalimantan_integrated.ipynb).
 
 ### 1. Persiapan lingkungan dan kredensial
 
