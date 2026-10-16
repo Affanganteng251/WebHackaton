@@ -1,0 +1,1526 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Siaga Api | Pemantau Kebakaran Hutan Kalimantan</title>
+    <meta
+      name="description"
+      content="Pantau titik api, kebakaran aktif, dan dampaknya pada kualitas udara di Pulau Kalimantan."
+    />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Leaflet (peta) & Feather Icons -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/feather-icons"></script>
+
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Navbar start -->
+    <nav class="navbar">
+      <a href="#peta" class="navbar-logo">PHYRA<span></span></a>
+
+      <div class="navbar-nav" id="navbar-nav">
+        <a href="#peta">Peta &amp; Data Kualitas Udara</a>
+        <a href="#berita">Berita &amp; Peringatan</a>
+        <a href="#edukasi">Edukasi</a>
+        <a href="#perlindungan">Dampak &amp; Perlindungan</a>
+        <a href="#lapor">Lapor &amp; Dukungan</a>
+      </div>
+
+      <div class="navbar-extra">
+        <button type="button" id="search-button" aria-label="Cari lokasi">
+          <i data-feather="search"></i>
+        </button>
+        <button type="button" id="hamburger-menu" aria-label="Buka menu">
+          <i data-feather="menu"></i>
+        </button>
+      </div>
+
+      <div class="search-form" id="search-form">
+        <input
+          type="search"
+          id="search-box"
+          placeholder="Cari kecamatan, kabupaten, atau provinsi…"
+          aria-label="Cari kecamatan atau wilayah kebakaran"
+          autocomplete="off"
+        />
+        <div class="search-dropdown" id="search-dropdown" style="display: none;" role="listbox" aria-label="Hasil pencarian kecamatan"></div>
+      </div>
+    </nav>
+    <!-- Navbar end -->
+
+    <!-- Peta start -->
+    <section class="hero" id="peta">
+      <aside class="bulletin">
+        <div class="mode-switcher-container">
+          <span class="mode-label">Mode Operasional:</span>
+          <div class="mode-switcher" role="group" aria-label="Pilihan Mode Operasional Data">
+            <button type="button" id="btn-mode-db" class="mode-btn active" title="Gunakan data dari server backend PHYRA (Mode Realtime)">🟢 Realtime</button>
+            <button type="button" id="btn-mode-sim" class="mode-btn" title="Aktifkan simulasi interaktif risiko karhutla untuk pengujian alur UI">🧪 Simulasi</button>
+          </div>
+        </div>
+
+        <h1>Peta kebakaran hutan Kalimantan</h1>
+        <p class="stamp">
+          Diperbarui <time id="updated">–</time>
+          <span id="sample-note"></span>
+          <button type="button" class="link" id="refresh">Muat ulang</button>
+        </p>
+        <div class="figures">
+          <div><b id="fire-count">–</b><span>kebakaran aktif</span></div>
+          <div><b id="ha-count">–</b><span>hektar terbakar</span></div>
+        </div>
+        <p id="state" role="status"></p>
+        <ul class="fire-list" id="fire-list"></ul>
+      </aside>
+
+      <div class="mapwrap">
+        <div id="simulation-banner" class="simulation-banner" style="display: none;" role="alert">
+          <span class="banner-badge">MODE SIMULASI</span>
+          <span class="banner-text">Data sintetis untuk demonstrasi — bukan data aktual</span>
+        </div>
+
+        <div id="horizon-control" class="horizon-control" style="display: none;" role="group" aria-label="Pilihan Horizon Prediksi Risiko">
+          <span class="horizon-title"><i data-feather="clock"></i> Horizon Risiko:</span>
+          <button type="button" class="horizon-btn active" data-horizon="7">7 Hari</button>
+          <button type="button" class="horizon-btn" data-horizon="14">14 Hari</button>
+          <button type="button" class="horizon-btn" data-horizon="30">30 Hari</button>
+        </div>
+
+        <div
+          id="map"
+          role="region"
+          aria-label="Peta titik api di Kalimantan"
+        ></div>
+        <label class="layer-toggle"
+          ><input type="checkbox" id="toggle-aqi" checked /> Kualitas udara
+          kota</label
+        >
+        <label class="layer-toggle zone-toggle"
+          ><input type="checkbox" id="toggle-zone" checked /> Area udara
+          berbahaya</label
+        >
+        <label class="layer-toggle hotspot-toggle"
+          ><input type="checkbox" id="toggle-hotspot" checked /> Titik panas
+          (hotspot)</label
+        >
+        <label class="layer-toggle district-toggle"
+          ><input type="checkbox" id="toggle-district" checked /> Batas kecamatan</label
+        >
+
+        <!-- Legenda Terpadu Peta PHYRA (Floating Unified Legend) -->
+        <div class="map-unified-legend map-status-legend" id="map-legend" role="region" aria-label="Legenda Peta PHYRA">
+          <!-- 1. Batas Wilayah -->
+          <div class="legend-group">
+            <span class="legend-group-label">Wilayah:</span>
+            <span class="legend-chip actual" title="Batas administrasi kecamatan dari database PostGIS">
+              <span class="swatch-polygon"></span>
+              <span>Batas Kecamatan</span>
+            </span>
+          </div>
+
+          <span class="legend-sep" aria-hidden="true"></span>
+
+          <!-- 2. Titik Hotspot -->
+          <div class="legend-group">
+            <span class="legend-group-label">Hotspot:</span>
+            <span class="legend-chip fire-actual" title="Titik panas terdeteksi (sumber database)">
+              <span class="dot dot-actual"></span>
+              <span>Aktual</span>
+            </span>
+            <span class="legend-chip test" title="Data benchmark pengujian sistem (bukan kebakaran aktual)">
+              <span class="dot dot-test"></span>
+              <span>Uji (TEST-001)</span>
+            </span>
+            <span class="legend-chip sim-hs" id="legend-sim-hotspot" style="display: none;" title="Titik api sintetis mode simulasi">
+              <span class="dot dot-sim"></span>
+              <span>Simulasi</span>
+            </span>
+          </div>
+
+          <span class="legend-sep" aria-hidden="true"></span>
+
+          <!-- 3. Kategori Risiko (Mode Realtime vs Mode Simulasi) -->
+          <div class="legend-group">
+            <span class="legend-group-label">Risiko:</span>
+            <!-- Mode Realtime: Tampilkan status belum tersedia secara jujur -->
+            <span class="legend-chip pending" id="chip-pending" title="Feed satelit dan model prediksi ML tim belum terhubung">
+              <span class="dot dot-pending"></span>
+              <span>Prediksi ML: Belum tersedia</span>
+            </span>
+            <!-- Mode Simulasi: Kategori risiko 7/14/30 hari -->
+            <div class="legend-risk-bar simulation" id="chip-simulation" style="display: none;" title="Skala kategori risiko karhutla mode simulasi">
+              <span class="risk-pill low" title="Risiko Rendah"><i class="risk-dot"></i>Rendah</span>
+              <span class="risk-pill medium" title="Risiko Sedang"><i class="risk-dot"></i>Sedang</span>
+              <span class="risk-pill high" title="Risiko Tinggi"><i class="risk-dot"></i>Tinggi</span>
+              <span class="risk-pill extreme" title="Risiko Ekstrem"><i class="risk-dot"></i>Ekstrem</span>
+              <span class="sim-badge">Simulasi</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Peta end -->
+
+    <!-- Skala AQI (di bawah peta) -->
+    <div class="legend under-map" id="legend" aria-label="Skala AQI"></div>
+
+    <!-- Misi start -->
+    <section class="section mission" id="misi">
+      <h2>
+        Memantau api dan perubahan lahan sejak dini, bersama warga sekitar hutan
+        dan gambut
+      </h2>
+      <p class="lead">
+        Warga di sekitar hutan dan lahan gambut yang terdampak kebakaran dan
+        deforestasi sering sulit memantau titik api dan alih fungsi lahan sejak
+        dini. Siaga Api menyatukan pemantauan dan laporan warga di satu tempat.
+      </p>
+      <ol class="flow">
+        <li>
+          <a href="#peta"
+            ><span class="ico"><i data-feather="eye"></i></span>
+            <h3>Pantau</h3>
+            <p>Lihat titik api dan kualitas udara di peta.</p></a
+          >
+        </li>
+        <li>
+          <a href="#berita"
+            ><span class="ico"><i data-feather="bell"></i></span>
+            <h3>Waspada</h3>
+            <p>
+              Cek jarak api dari tempat Anda dan dapatkan saran tindakan.
+            </p></a
+          >
+        </li>
+        <li>
+          <a href="#lapor"
+            ><span class="ico"><i data-feather="users"></i></span>
+            <h3>Libatkan warga</h3>
+            <p>
+              Laporkan api, asap, atau pembukaan lahan dengan foto dan lokasi.
+            </p></a
+          >
+        </li>
+      </ol>
+    </section>
+    <!-- Misi end -->
+
+    <!-- Provinsi start -->
+    <section class="section" id="provinsi">
+      <h2>Provinsi mana yang paling terdampak?</h2>
+      <p class="lead">
+        Pilih provinsi yang memiliki kebakaran aktif untuk melihat lokasinya di
+        peta.
+      </p>
+      <div class="province-grid" id="province-grid"></div>
+      <div id="province-tables"></div>
+    </section>
+    <!-- Provinsi end -->
+
+    <!-- Berita & Peringatan start -->
+    <section class="section" id="berita">
+      <h2>Berita dan Peringatan Dini</h2>
+      <p class="lead">
+        Kabar terbaru tentang kebakaran hutan, dan peringatan dini untuk daerah
+        yang udaranya berbahaya.
+      </p>
+
+      <!-- A. Berita -->
+      <h3 class="part-h" id="berita-a"><span>A</span> Berita</h3>
+      <div class="trend">
+        <i data-feather="trending-up" aria-hidden="true"></i>
+        <div
+          class="tchips"
+          id="news-topics"
+          role="group"
+          aria-label="Topik berita"
+        ></div>
+      </div>
+      <div class="news-grid" id="news"></div>
+
+      <!-- B. Peringatan Dini -->
+      <h3 class="part-h" id="peringatan-dini">
+        <span>B</span> Peringatan Dini
+      </h3>
+      <p class="lead">
+        Daerah siaga diurutkan dari udara terburuk. Angka di samping nama kota
+        adalah AQI&#8314; US.
+      </p>
+      <div class="locate" id="locate">
+        <div>
+          <h3>Seberapa dekat api dari Anda?</h3>
+          <p>
+            Cek jarak Anda ke titik api terdekat dan kualitas udara di kota
+            terdekat, lengkap dengan saran tindakan.
+          </p>
+        </div>
+        <div class="locate-actions">
+          <button type="button" class="btn" id="loc-btn">
+            <i data-feather="crosshair"></i> Cek lokasi saya
+          </button>
+          <label class="loc-pick"
+            >atau pilih lokasi
+            <select id="loc-pick">
+              <option value="">Pilih kota…</option>
+            </select>
+          </label>
+        </div>
+        <p id="loc-status" role="status"></p>
+        <div id="loc-result" aria-live="polite"></div>
+      </div>
+
+      <h4 class="sub-h">Daerah siaga</h4>
+      <div
+        class="filters"
+        id="alert-filters"
+        role="group"
+        aria-label="Filter tingkat peringatan"
+      ></div>
+      <ul class="alerts" id="alerts"></ul>
+    </section>
+    <!-- Berita & Peringatan end -->
+
+    <!-- Edukasi start -->
+    <section class="section" id="edukasi">
+      <h2>Edukasi</h2>
+      <p class="lead">Pahami polusi udara dengan lebih baik.</p>
+
+      <div class="edu-cards-container">
+        <!-- Card PM2.5 -->
+        <button
+          type="button"
+          class="edu-card"
+          onclick="openModal('modal-pm25')"
+          aria-label="Buka info PM2.5"
+        >
+          <div class="edu-card-header">
+            <h3>Apa itu PM2.5?</h3>
+            <i data-feather="arrow-up-right"></i>
+          </div>
+          <p>
+            PM2.5 merupakan partikel yang mengambang di udara dengan ukuran
+            diameter 2,5 mikrometer atau kurang...
+          </p>
+        </button>
+
+        <!-- Card PM10 -->
+        <button
+          type="button"
+          class="edu-card"
+          onclick="openModal('modal-pm10')"
+          aria-label="Buka info PM10"
+        >
+          <div class="edu-card-header">
+            <h3>Apa itu PM10?</h3>
+            <i data-feather="arrow-up-right"></i>
+          </div>
+          <p>
+            PM10 adalah partikel di udara dengan diameter 10 mikrometer atau
+            kurang (termasuk asap, jelaga, garam...
+          </p>
+        </button>
+
+        <!-- Card Ozon -->
+        <button
+          type="button"
+          class="edu-card"
+          onclick="openModal('modal-ozon')"
+          aria-label="Buka info Ozon"
+        >
+          <div class="edu-card-header">
+            <h3>Apa itu Ozon?</h3>
+            <i data-feather="arrow-up-right"></i>
+          </div>
+          <p>
+            Ozon (O₃) adalah gas yang dibentuk oleh radiasi ultraviolet (sinar
+            matahari) dan molekul oksigen...
+          </p>
+        </button>
+      </div>
+
+      <!-- Kesehatan: gambar kiri, teks kanan -->
+      <div class="edu-feature">
+        <figure class="edu-figure">
+          <img src="img/batuk.jpg" alt="Dampak polusi pada kesehatan" />
+        </figure>
+        <div class="edu-text">
+          <h3>Bagaimana polusi udara memengaruhi kesehatan</h3>
+          <p>
+            Polusi udara berdampak buruk pada hampir seluruh sistem organ tubuh
+            dan menjadi ancaman lingkungan terbesar. Menurut WHO, polusi ini
+            memicu sekitar 7 juta kematian dini di seluruh dunia setiap
+            tahunnya.
+          </p>
+          <p>
+            Paparan jangka pendek dapat menyebabkan batuk, sesak napas, iritasi
+            mata, dan kambuhnya asma. Sementara itu, paparan jangka panjang
+            secara signifikan meningkatkan risiko penyakit jantung, stroke,
+            penyakit paru obstruktif kronis (PPOK), diabetes, hingga beberapa
+            jenis kanker.
+          </p>
+          <p>
+            Lebih dari itu, polusi udara juga berdampak pada penurunan fungsi
+            kognitif (seperti Alzheimer dan Parkinson) serta menyebabkan
+            komplikasi kehamilan, termasuk kelahiran prematur dan bayi dengan
+            berat badan rendah.
+          </p>
+          <a class="btn" href="#jenis-polutan"
+            >Lihat polutan dan risiko kesehatannya</a
+          >
+        </div>
+      </div>
+
+      <!-- Planet: teks kiri, gambar kanan -->
+      <div class="edu-feature reverse">
+        <div class="edu-text">
+          <h3>Bagaimana polusi udara memengaruhi planet</h3>
+          <p>
+            Polusi udara tidak hanya membahayakan manusia, tetapi juga
+            mengganggu iklim dan ekosistem bumi.
+          </p>
+          <p>
+            Pembakaran bahan bakar fosil dan kebakaran hutan melepaskan gas
+            rumah kaca seperti karbon dioksida (CO₂), metana (CH₄), dan nitrogen
+            oksida (N₂O). Gas-gas ini menahan panas di atmosfer sehingga bumi
+            makin hangat.
+          </p>
+          <p>
+            Kebakaran hutan juga melepas karbon yang tersimpan di pohon dan
+            gambut, serta menghasilkan partikel yang menurunkan kualitas udara
+            di wilayah yang luas.
+          </p>
+          <a class="btn" href="#peta">Lihat kebakaran hutan di peta</a>
+        </div>
+        <figure class="edu-figure">
+          <!-- Menggunakan gambar pabrik.jpg -->
+          <img
+            src="img/pabrik.jpg"
+            alt="Asap pabrik dan dampaknya pada planet"
+          />
+        </figure>
+      </div>
+
+      <!-- Jenis polutan: judul di tengah, gambar lebar -->
+      <div class="edu-types" id="jenis-polutan">
+        <h3>Jenis utama polusi udara dan artinya bagi kesehatan Anda</h3>
+        <p>
+          Kualitas udara yang kita hirup memiliki tingkat risiko yang
+          bervariasi, mulai dari kategori aman bagi kesehatan hingga yang sangat
+          berbahaya. Tingkat polusi ini secara umum ditentukan oleh enam polutan
+          utama: PM2.5, PM10, ozon (O₃), nitrogen dioksida (NO₂), sulfur
+          dioksida (SO₂), dan karbon monoksida (CO).
+        </p>
+        <p>
+          <strong>Ikuti panah pada gambar</strong> untuk melihat letak tiap
+          polutan dan apa artinya.
+        </p>
+        <div class="pmap" id="pmap">
+          <ul class="pcards">
+            <li class="pcard" data-pin="o3">
+              <span class="pnum">1</span>
+              <div>
+                <h4>Ozon (O₃)</h4>
+                <p>
+                  Gas yang terbentuk saat sinar matahari memicu reaksi gas
+                  buangan kendaraan dan industri. Ini bahan utama kabut asap
+                  (<em>smog</em>) dan dapat mengganggu fungsi paru-paru,
+                  terutama pada anak.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >;
+                  <a
+                    href="https://www.eea.europa.eu/en/analysis/publications/air-pollution-and-childrens-health"
+                    target="_blank"
+                    rel="noopener"
+                    >EEA 2023</a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="pcard" data-pin="pm25">
+              <span class="pnum">2</span>
+              <div>
+                <h4>PM2.5</h4>
+                <p>
+                  Partikel sangat halus (2,5 mikrometer atau lebih kecil) dari
+                  asap kebakaran hutan, kendaraan, dan industri. Bisa masuk jauh
+                  ke paru-paru dan sebagian masuk ke aliran darah.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="pcard" data-pin="co">
+              <span class="pnum">3</span>
+              <div>
+                <h4>Karbon monoksida (CO)</h4>
+                <p>
+                  Gas tak berwarna dan tak berbau dari pembakaran yang tidak
+                  sempurna: knalpot, proses industri, kayu bakar, dan kebakaran
+                  hutan.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >
+                </p>
+              </div>
+            </li>
+          </ul>
+          <figure class="edu-figure wide pfig">
+            <!-- Menggunakan gambar mobil.webp (1200x487). Penanda sudah dipasang di tiap ikon; ubah --x/--y bila perlu -->
+            <img
+              src="img/mobil.webp"
+              alt="Ilustrasi jenis utama polusi udara"
+            />
+            <span
+              class="pin"
+              data-id="o3"
+              data-n="1"
+              aria-hidden="true"
+              style="--x: 16.2%; --y: 22.6%"
+            ></span
+            ><span
+              class="pin"
+              data-id="pm25"
+              data-n="2"
+              aria-hidden="true"
+              style="--x: 52.3%; --y: 33.5%"
+            ></span
+            ><span
+              class="pin"
+              data-id="co"
+              data-n="3"
+              aria-hidden="true"
+              style="--x: 60.9%; --y: 11.3%"
+            ></span
+            ><span
+              class="pin"
+              data-id="no2"
+              data-n="4"
+              aria-hidden="true"
+              style="--x: 24.2%; --y: 66.7%"
+            ></span
+            ><span
+              class="pin"
+              data-id="so2"
+              data-n="5"
+              aria-hidden="true"
+              style="--x: 42.8%; --y: 75.6%"
+            ></span
+            ><span
+              class="pin"
+              data-id="pm10"
+              data-n="6"
+              aria-hidden="true"
+              style="--x: 81.7%; --y: 85.2%"
+            ></span>
+          </figure>
+          <ul class="pcards">
+            <li class="pcard" data-pin="no2">
+              <span class="pnum">4</span>
+              <div>
+                <h4>Nitrogen dioksida (NO₂)</h4>
+                <p>
+                  Gas dari kelompok nitrogen oksida yang dilepas knalpot
+                  kendaraan dan industri. Ikut membentuk ozon dan partikel,
+                  serta dapat memengaruhi perkembangan paru-paru anak.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >;
+                  <a
+                    href="https://www.eea.europa.eu/en/analysis/publications/air-pollution-and-childrens-health"
+                    target="_blank"
+                    rel="noopener"
+                    >EEA 2023</a
+                  >;
+                  <a
+                    href="https://news.un.org/en/story/2022/04/1115492"
+                    target="_blank"
+                    rel="noopener"
+                    >UN News (data WHO)</a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="pcard" data-pin="so2">
+              <span class="pnum">5</span>
+              <div>
+                <h4>Sulfur dioksida (SO₂)</h4>
+                <p>
+                  Gas dari pembakaran bahan bakar berbelerang seperti batu bara
+                  dan minyak. Di udara berubah menjadi asam dan sulfat yang
+                  berbahaya bagi manusia dan lingkungan.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >
+                </p>
+              </div>
+            </li>
+            <li class="pcard" data-pin="pm10">
+              <span class="pnum">6</span>
+              <div>
+                <h4>PM10</h4>
+                <p>
+                  Partikel debu (10 mikrometer atau lebih kecil) yang umumnya
+                  ada di dekat jalan raya dan industri berdebu. Bila terhirup,
+                  dapat memengaruhi jantung dan paru-paru.
+                </p>
+                <p class="src">
+                  Sumber:
+                  <a
+                    href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                    target="_blank"
+                    rel="noopener"
+                    >AQMD Guidebook</a
+                  >
+                </p>
+              </div>
+            </li>
+          </ul>
+          <svg class="parrows" aria-hidden="true"></svg>
+        </div>
+        <script>
+          (function () {
+            var map = document.getElementById("pmap");
+            if (!map) return;
+            var svg = map.querySelector(".parrows"),
+              NS = "http://www.w3.org/2000/svg";
+            function draw() {
+              svg.innerHTML =
+                '<defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>';
+              if (window.matchMedia("(max-width: 900px)").matches) return;
+              var m = map.getBoundingClientRect();
+              svg.setAttribute("viewBox", "0 0 " + m.width + " " + m.height);
+              map.querySelectorAll(".pcard").forEach(function (card) {
+                var pin = map.querySelector(
+                  '.pin[data-id="' + card.dataset.pin + '"]',
+                );
+                var c = card.getBoundingClientRect(),
+                  p = pin.getBoundingClientRect();
+                var up = c.top < p.top;
+                var x1 = c.left + c.width / 2 - m.left,
+                  y1 = (up ? c.bottom : c.top) - m.top;
+                var x2 = p.left + p.width / 2 - m.left,
+                  y2 = (up ? p.top : p.bottom) - m.top;
+                var my = (y1 + y2) / 2;
+                var path = document.createElementNS(NS, "path");
+                path.setAttribute(
+                  "d",
+                  "M" +
+                    x1 +
+                    " " +
+                    y1 +
+                    " C" +
+                    x1 +
+                    " " +
+                    my +
+                    " " +
+                    x2 +
+                    " " +
+                    my +
+                    " " +
+                    x2 +
+                    " " +
+                    y2,
+                );
+                path.setAttribute("marker-end", "url(#ah)");
+                svg.appendChild(path);
+              });
+            }
+            draw();
+            window.addEventListener("resize", draw);
+            window.addEventListener("load", draw);
+            var img = map.querySelector("img");
+            if (img) img.addEventListener("load", draw);
+            if (window.ResizeObserver) new ResizeObserver(draw).observe(map);
+          })();
+        </script>
+      </div>
+    </section>
+    <!-- Edukasi end -->
+
+    <!-- Dampak & Perlindungan start -->
+    <section class="section" id="perlindungan">
+      <h2>Dampak kesehatan dan sumber polusi udara</h2>
+      <p class="lead">
+        Polusi udara termasuk penyebab kematian terbesar di dunia. Asap
+        kebakaran paling berbahaya bagi anak, lansia, ibu hamil, serta penderita
+        asma dan penyakit jantung.
+      </p>
+
+      <div class="impact-grid">
+        <article class="card">
+          <h3>Apa faktor risiko utama kematian di seluruh dunia?</h3>
+          <p class="muted">
+            Perkiraan jumlah kematian global per tahun yang dikaitkan dengan
+            tiap faktor risiko (data 2021).
+          </p>
+          <table class="risk">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Faktor risiko</th>
+                <th>Meninggal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="">
+                <td>1</td>
+                <td>Tekanan darah tinggi</td>
+                <td>10,9 jt</td>
+              </tr>
+              <tr class="air">
+                <td>2</td>
+                <td>Polusi udara (luar & dalam ruangan)</td>
+                <td>8,1 jt</td>
+              </tr>
+              <tr class="air">
+                <td>3</td>
+                <td>Merokok</td>
+                <td>6,2 jt</td>
+              </tr>
+              <tr class="">
+                <td>4</td>
+                <td>Gula darah tinggi</td>
+                <td>5,3 jt</td>
+              </tr>
+              <tr class="air">
+                <td>5</td>
+                <td>Polusi partikel luar ruangan</td>
+                <td>4,7 jt</td>
+              </tr>
+              <tr class="">
+                <td>6</td>
+                <td>Kegemukan</td>
+                <td>3,7 jt</td>
+              </tr>
+              <tr class="">
+                <td>7</td>
+                <td>Kolesterol tinggi</td>
+                <td>3,6 jt</td>
+              </tr>
+              <tr class="air">
+                <td>8</td>
+                <td>Polusi udara dalam ruangan</td>
+                <td>3,1 jt</td>
+              </tr>
+              <tr class="">
+                <td>9</td>
+                <td>Diet tinggi natrium</td>
+                <td>1,9 jt</td>
+              </tr>
+              <tr class="">
+                <td>10</td>
+                <td>Konsumsi alkohol</td>
+                <td>1,8 jt</td>
+              </tr>
+              <tr class="">
+                <td>11</td>
+                <td>Diet rendah buah</td>
+                <td>1,7 jt</td>
+              </tr>
+              <tr class="">
+                <td>12</td>
+                <td>Diet rendah biji-bijian utuh</td>
+                <td>1,5 jt</td>
+              </tr>
+              <tr class="">
+                <td>13</td>
+                <td>Berat badan lahir rendah</td>
+                <td>1,5 jt</td>
+              </tr>
+              <tr class="air">
+                <td>14</td>
+                <td>Asap rokok</td>
+                <td>1,3 jt</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="note">
+            <span class="swatch"></span> Terkait dengan risiko polusi udara
+          </p>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://ourworldindata.org/grapher/number-of-deaths-by-risk-factor"
+              target="_blank"
+              rel="noopener"
+              >Our World in Data (data IHME GBD)</a
+            >
+          </p>
+        </article>
+
+        <div class="stack">
+          <article class="card">
+            <h3>Sumber utama polusi PM2.5</h3>
+            <p class="muted">
+              PM2.5 adalah partikel halus berdiameter hingga 2,5 mikrometer.
+              Partikel ini dapat menembus jauh ke paru-paru dan masuk ke aliran
+              darah.
+            </p>
+            <div class="src-grid">
+              <div class="src-item">
+                <i data-feather="alert-triangle"></i
+                ><span>Kebakaran hutan dan lahan</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="zap"></i><span>Pembangkit listrik</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="settings"></i><span>Proses industri</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="truck"></i><span>Kendaraan bermotor</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="home"></i
+                ><span>Pemanas dan pembakaran biomassa rumah tangga</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="share-2"></i
+                ><span>Konversi gas menjadi partikel</span>
+              </div>
+            </div>
+            <p class="src">
+              Sumber:
+              <a
+                href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                target="_blank"
+                rel="noopener"
+                >AQMD Community in Action Guidebook</a
+              >;
+              <a
+                href="https://www.eea.europa.eu/en/analysis/publications/air-pollution-and-childrens-health"
+                target="_blank"
+                rel="noopener"
+                >EEA (European Environment Agency)</a
+              >
+            </p>
+          </article>
+          <article class="card">
+            <h3>Sumber utama polusi PM10</h3>
+            <p class="muted">
+              PM10 adalah partikel berdiameter hingga 10 mikrometer, yang
+              umumnya berupa debu dan partikel kasar.
+            </p>
+            <div class="src-grid">
+              <div class="src-item">
+                <i data-feather="tool"></i
+                ><span>Konstruksi dan pembongkaran</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="map"></i
+                ><span>Jalan tanah atau tidak beraspal</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="layers"></i><span>Lahan pertanian</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="settings"></i><span>Cerobong industri</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="alert-triangle"></i><span>Kebakaran</span>
+              </div>
+              <div class="src-item">
+                <i data-feather="truck"></i
+                ><span>Lalu lintas di jalan raya</span>
+              </div>
+            </div>
+            <p class="src">
+              Sumber:
+              <a
+                href="https://www.epa.gov/pm-pollution/particulate-matter-pm-basics"
+                target="_blank"
+                rel="noopener"
+                >US EPA Particulate Matter Basics</a
+              >;
+              <a
+                href="https://www.aqmd.gov/docs/default-source/aq-spec/star-grant/community-in-action-guidebook-on-air-quality-sensors-%28appendices-only%29.pdf"
+                target="_blank"
+                rel="noopener"
+                >AQMD Community in Action Guidebook</a
+              >
+            </p>
+          </article>
+        </div>
+      </div>
+
+      <article class="card kids">
+        <h3>Bagaimana polusi udara memengaruhi anak-anak?</h3>
+        <div class="kid-row">
+          <div class="kid">
+            <span class="ico"><i data-feather="wind"></i></span>
+            <h4>Masalah pernapasan</h4>
+            <p>Meningkatnya risiko infeksi saluran pernapasan dan asma.</p>
+          </div>
+          <div class="kid">
+            <span class="ico"><i data-feather="activity"></i></span>
+            <h4>Penurunan fungsi paru-paru</h4>
+            <p>
+              Paparan jangka panjang partikel halus (PM2.5) dapat mengganggu
+              perkembangan paru-paru.
+            </p>
+          </div>
+          <div class="kid">
+            <span class="ico"><i data-feather="book-open"></i></span>
+            <h4>Perkembangan kognitif</h4>
+            <p>
+              Bukti yang makin banyak menunjukkan dampak terhadap perkembangan
+              otak dan kemampuan kognitif.
+            </p>
+          </div>
+        </div>
+        <p class="src">
+          Sumber:
+          <a
+            href="https://www.eea.europa.eu/en/analysis/publications/air-pollution-and-childrens-health"
+            target="_blank"
+            rel="noopener"
+            >EEA (European Environment Agency)</a
+          >
+        </p>
+      </article>
+
+      <div class="stat-row">
+        <article class="card stat">
+          <b class="big">99%</b>
+          <p class="stat-text">
+            Populasi dunia tinggal di tempat-tempat yang kualitas udaranya
+            melampaui batas pedoman tahunan WHO.
+          </p>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.unep.org/interactives/air-pollution-note/"
+              target="_blank"
+              rel="noopener"
+              >UNEP Air Pollution Note</a
+            >
+          </p>
+        </article>
+        <article class="card stat">
+          <b class="big">8,1 Juta</b>
+          <p class="stat-text">
+            Kematian di seluruh dunia dapat disebabkan oleh polusi udara.
+          </p>
+          <ul class="breakdown">
+            <li><b>4,7 juta</b>Karena polusi udara partikulat luar ruangan</li>
+            <li><b>3,1 juta</b>Karena polusi udara dalam ruangan</li>
+            <li><b>0,5 juta</b>Karena polusi ozon luar ruangan</li>
+          </ul>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.healthdata.org/news-events/newsroom/news-releases/air-pollution-accounted-81-million-deaths-globally-2021-becoming"
+              target="_blank"
+              rel="noopener"
+              >IHME/HEI State of Global Air 2024</a
+            >
+          </p>
+        </article>
+        <article class="card stat">
+          <b class="big">100<small>/100.000</small></b>
+          <p class="stat-text">
+            Orang-orang di seluruh dunia meninggal karena polusi udara.
+          </p>
+          <ul class="breakdown">
+            <li>
+              <b>58<small>/100.000</small></b
+              >Dari partikel luar ruangan
+            </li>
+            <li>
+              <b>39<small>/100.000</small></b
+              >Dari polusi udara dalam ruangan
+            </li>
+            <li>
+              <b>6<small>/100.000</small></b
+              >Dari polusi ozon luar ruangan
+            </li>
+          </ul>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.healthdata.org/research-analysis/gbd"
+              target="_blank"
+              rel="noopener"
+              >IHME Global Burden of Disease</a
+            >
+          </p>
+        </article>
+      </div>
+
+      <div class="call">
+        <h3>Jaga diri Anda dari polusi udara</h3>
+        <p>
+          Saat asap kebakaran datang, perlindungan pertama ada di tangan kita
+          sendiri. Cek kualitas udara sebelum beraktivitas, kenali orang di
+          sekitar Anda yang paling berisiko, dan ajak keluarga serta rekan kerja
+          melakukan hal yang sama.
+        </p>
+        <p>
+          Langkah yang tepat berbeda-beda, bergantung pada di mana Anda
+          menghabiskan hari. Baca panduan berikut untuk rumah, kantor, dan luar
+          ruangan.
+        </p>
+        <a class="btn" href="#panduan-aktivitas"
+          >Baca panduannya <i data-feather="arrow-down"></i
+        ></a>
+      </div>
+
+      <h3 class="sub-h protect-h" id="panduan-aktivitas">
+        Panduan menurut aktivitas harian
+      </h3>
+      <p class="lead">
+        Cara melindungi diri, menanggulangi, dan mengurangi dampak asap berbeda
+        bagi orang yang berada di rumah, di kantor, dan di luar ruangan.
+      </p>
+      <div class="group-grid">
+        <article class="card group">
+          <span class="ico"><i data-feather="home"></i></span>
+          <h3>Orang yang berada di rumah</h3>
+          <p class="muted">
+            Rumah adalah tempat berlindung utama saat asap tebal.
+          </p>
+          <h4>Melindungi diri</h4>
+          <ul class="plain">
+            <li>
+              Tetap di dalam ruangan saat kualitas udara tidak sehat, kecuali
+              ada arahan evakuasi dari pemerintah daerah.
+            </li>
+            <li>
+              Atur AC ke mode sirkulasi ulang (<em>recirculate</em>) dan pakai
+              filter yang lebih efisien.
+            </li>
+            <li>
+              Hindari sumber asap di dalam rumah: lilin, kompor gas atau tungku
+              kayu, semprotan aerosol, merokok, menyedot debu, serta menggoreng
+              atau memanggang daging.
+            </li>
+          </ul>
+          <h4>Menanggulangi</h4>
+          <ul class="plain">
+            <li>
+              Gunakan penjernih udara portabel. Bila tidak ada,
+              <a
+                href="https://www.epa.gov/air-research/research-diy-air-cleaners-reduce-wildfire-smoke-indoors"
+                target="_blank"
+                rel="noopener"
+                >EPA: penjernih udara rakitan</a
+              >
+              bisa menjadi alternatif.
+            </li>
+            <li>
+              Siapkan satu ruangan sebagai ruang bersih agar kadar asap di
+              dalamnya serendah mungkin (<a
+                href="https://www.epa.gov/indoor-air-quality-iaq/create-clean-room-protect-indoor-air-quality-during-wildfire"
+                target="_blank"
+                rel="noopener"
+                >EPA: ruang bersih</a
+              >).
+            </li>
+          </ul>
+          <h4>Mengurangi dampak</h4>
+          <ul class="plain">
+            <li>
+              Anak, penderita asma atau PPOK, penderita penyakit jantung, dan
+              ibu hamil lebih berisiko, jadi jaga mereka tetap di dalam ruangan.
+            </li>
+            <li>
+              Anak usia 2 tahun ke atas boleh memakai respirator yang pas. Anak
+              di bawah 2 tahun tidak boleh memakai masker atau respirator.
+            </li>
+          </ul>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.cdc.gov/niosh/bulletin/2025/wildfire-smoke.html"
+              target="_blank"
+              rel="noopener"
+              >CDC/NIOSH: How to Protect Workers and the Public from Wildfire
+              Smoke</a
+            >
+          </p>
+        </article>
+        <article class="card group">
+          <span class="ico"><i data-feather="briefcase"></i></span>
+          <h3>Pekerja kantoran</h3>
+          <p class="muted">
+            Bekerja di dalam gedung, tetapi tetap bersentuhan dengan asap saat
+            berangkat dan pulang.
+          </p>
+          <h4>Melindungi diri</h4>
+          <ul class="plain">
+            <li>Tetap di dalam gedung saat kualitas udara tidak sehat.</li>
+            <li>
+              Minta pengelola gedung mengatur AC ke mode sirkulasi ulang dan
+              memakai filter yang lebih efisien.
+            </li>
+            <li>
+              Cek AQI sebelum berangkat atau pulang. Keluar saat udara Baik atau
+              Sedang, dan pakai respirator yang pas bila udara tidak sehat atau
+              terlihat berasap.
+            </li>
+          </ul>
+          <h4>Menanggulangi</h4>
+          <ul class="plain">
+            <li>Gunakan penyaring udara portabel di ruang kerja.</li>
+            <li>Jangan menyalakan lilin atau semprotan aerosol di ruangan.</li>
+          </ul>
+          <h4>Mengurangi dampak</h4>
+          <ul class="plain">
+            <li>
+              Batasi waktu di luar gedung. Bila terpaksa keluar saat udara tidak
+              sehat, pakai N95 yang menutup hidung sampai dagu.
+            </li>
+            <li>
+              Jika sesak napas, pusing, atau gejala lain muncul, pindah ke
+              tempat berudara lebih bersih dan cari bantuan medis.
+            </li>
+          </ul>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.cdc.gov/niosh/bulletin/2025/wildfire-smoke.html"
+              target="_blank"
+              rel="noopener"
+              >CDC/NIOSH: How to Protect Workers and the Public from Wildfire
+              Smoke</a
+            >
+          </p>
+        </article>
+        <article class="card group">
+          <span class="ico"><i data-feather="sun"></i></span>
+          <h3>Pekerja di luar rumah</h3>
+          <p class="muted">
+            Pengemudi, petani, kurir, petugas lapangan, dan pekerja lain yang
+            tidak bisa menghindari asap.
+          </p>
+          <h4>Melindungi diri</h4>
+          <ul class="plain">
+            <li>Pantau kualitas udara secara berkala sepanjang hari kerja.</li>
+            <li>
+              Pindahkan atau jadwalkan ulang tugas ke area yang bebas asap atau
+              lebih sedikit asapnya.
+            </li>
+            <li>
+              Bila harus bekerja di luar, pakai respirator N95 atau P100
+              berlabel NIOSH. Pasang kedua tali, bentuk klip hidung dengan kuat,
+              dan bercukur bersih agar rapat.
+            </li>
+          </ul>
+          <h4>Menanggulangi</h4>
+          <ul class="plain">
+            <li>Istirahat sering di tempat bebas asap.</li>
+            <li>
+              Respirator dapat menambah risiko sakit akibat panas. Istirahat
+              sering dan minum air putih. Model berkatup ekshalasi bisa membantu
+              bila terasa gerah.
+            </li>
+          </ul>
+          <h4>Mengurangi dampak</h4>
+          <ul class="plain">
+            <li>
+              Ganti respirator bila terasa sulit bernapas, kotor di bagian
+              dalam, atau rusak.
+            </li>
+            <li>
+              Penderita penyakit jantung atau paru sebaiknya berkonsultasi
+              dengan dokter sebelum memakai respirator. Jika pusing atau sesak,
+              lepas respirator, pindah ke udara bersih, lalu cari bantuan medis.
+            </li>
+          </ul>
+          <p class="src">
+            Sumber:
+            <a
+              href="https://www.cdc.gov/niosh/bulletin/2025/wildfire-smoke.html"
+              target="_blank"
+              rel="noopener"
+              >CDC/NIOSH: How to Protect Workers and the Public from Wildfire
+              Smoke</a
+            >;
+            <a
+              href="https://www.osha.gov/wildfires"
+              target="_blank"
+              rel="noopener"
+              >OSHA: Wildfires</a
+            >
+          </p>
+        </article>
+      </div>
+      <p class="guide-note">
+        <strong>Catatan:</strong> Panduan ini berasal dari lembaga kesehatan
+        Amerika Serikat. Ikuti arahan BPBD, dinas kesehatan, dan pemerintah
+        daerah setempat, terutama untuk evakuasi.
+      </p>
+    </section>
+    <!-- Dampak & Perlindungan end -->
+
+    <!-- Lapor & Dukungan start -->
+    <section class="section" id="lapor">
+      <h2>Lihat api atau asap? Laporkan.</h2>
+      <p class="lead">
+        Laporan warga membantu petugas memeriksa titik panas yang belum
+        terdeteksi satelit.
+      </p>
+      <div class="lapor-grid">
+        <form id="report-form" class="report">
+          <fieldset class="types wide">
+            <legend>Apa yang Anda lihat?</legend>
+            <label
+              ><input type="radio" name="jenis" value="api" required /><span
+                >Api atau asap</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="jenis" value="lahan" /><span
+                >Pembukaan atau alih fungsi lahan</span
+              ></label
+            >
+            <label
+              ><input type="radio" name="jenis" value="gambut" /><span
+                >Gambut kering atau terbakar</span
+              ></label
+            >
+          </fieldset>
+          <div class="input-group">
+            <i data-feather="user"></i
+            ><input type="text" name="nama" placeholder="Nama" required />
+          </div>
+          <div class="input-group">
+            <i data-feather="phone"></i
+            ><input type="tel" name="hp" placeholder="No. HP (opsional)" />
+          </div>
+          <div class="input-group wide">
+            <i data-feather="map-pin"></i
+            ><input
+              type="text"
+              name="lokasi"
+              placeholder="Lokasi (desa, kecamatan, kabupaten, atau koordinat)"
+              required
+            />
+            <button type="button" class="link loc-gps" id="loc-gps">
+              Gunakan lokasi saya
+            </button>
+          </div>
+          <div class="input-group wide">
+            <i data-feather="file-text"></i
+            ><textarea
+              name="deskripsi"
+              rows="3"
+              placeholder="Ceritakan singkat: seberapa luas, sejak kapan, apakah ada asap tebal"
+              required
+            ></textarea>
+          </div>
+          <div class="wide photo-row">
+            <label class="photo-btn"
+              ><i data-feather="camera"></i> Tambah foto (opsional)
+              <input
+                type="file"
+                id="photo"
+                accept="image/*"
+                capture="environment"
+              />
+            </label>
+            <img id="photo-prev" alt="Pratinjau foto laporan" hidden />
+          </div>
+          <button type="submit" class="btn">Kirim laporan</button>
+          <p id="report-status" role="status"></p>
+          <p id="net-note" class="net-note wide" hidden>
+            Anda sedang offline. Laporan disimpan di perangkat dan dikirim
+            otomatis saat tersambung.
+          </p>
+          <div id="report-track" class="wide" aria-live="polite"></div>
+        </form>
+        <aside class="support">
+          <h3>Butuh bantuan segera?</h3>
+          <dl>
+            <dt>Layanan darurat</dt>
+            <dd><a href="tel:112">112</a></dd>
+            <dt>Pemadam kebakaran</dt>
+            <dd><a href="tel:113">113</a></dd>
+            <dt>BPBD setempat</dt>
+            <dd>
+              Hubungi kantor BPBD kabupaten atau kota Anda untuk informasi posko
+              dan evakuasi.
+            </dd>
+          </dl>
+        </aside>
+      </div>
+    </section>
+    <!-- Lapor & Dukungan end -->
+
+    <!-- Footer start -->
+    <footer class="site-footer">
+      <!-- Overlay gradien agar teks tetap terbaca di atas gambar bumi -->
+      <div class="footer-overlay"></div>
+
+      <div class="footer-content">
+        <div class="footer-brand">
+          <h2>PHYRA<span></span></h2>
+          <p>Bersama memantau dan melindungi langit Indonesia.</p>
+        </div>
+
+        <div class="footer-links">
+          <a href="#peta">Peta &amp; Data Kualitas Udara</a>
+          <a href="#berita">Berita &amp; Peringatan</a>
+          <a href="#edukasi">Edukasi</a>
+          <a href="#perlindungan">Dampak &amp; Perlindungan</a>
+          <a href="#lapor">Lapor &amp; Dukungan</a>
+        </div>
+
+        <div class="footer-social">
+          <a href="#" aria-label="Facebook"><i data-feather="facebook"></i></a>
+          <a href="#" aria-label="Twitter"><i data-feather="twitter"></i></a>
+          <a href="#" aria-label="Instagram"
+            ><i data-feather="instagram"></i
+          ></a>
+          <a href="#" aria-label="GitHub"><i data-feather="github"></i></a>
+        </div>
+
+        <div class="footer-bottom">
+          <p>
+            PHYRA &copy; 2026. Proyek hackathon. Titik api dari data satelit,
+            kualitas udara dari stasiun pemantau.
+          </p>
+        </div>
+      </div>
+    </footer>
+    <!-- Footer end -->
+
+    <!-- Modal detail start (lama) -->
+    <div
+      class="modal"
+      id="detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div class="modal-container">
+        <button
+          type="button"
+          class="close-icon"
+          id="modal-close"
+          aria-label="Tutup"
+        >
+          <i data-feather="x"></i>
+        </button>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+    <!-- Modal detail end -->
+
+    <!-- Edu Modal Containers Start (Baru) -->
+    <div id="modal-pm25" class="edu-modal-overlay">
+      <div class="edu-modal-content">
+        <button
+          class="close-icon"
+          onclick="closeModal('modal-pm25')"
+          aria-label="Tutup"
+        >
+          <i data-feather="x"></i>
+        </button>
+        <h2>Apa itu PM2.5?</h2>
+        <p class="subtitle">Partikel halus (≤ 2,5 µm)</p>
+
+        <div class="edu-modal-body">
+          <h3>Apa itu PM2.5?</h3>
+          <p>
+            PM2.5 merupakan partikel yang mengambang di udara dengan ukuran
+            diameter 2,5 mikrometer atau kurang. Ukuran PM2.5 sangat kecil
+            sehingga dapat diserap ke dalam aliran darah saat bernapas. Karena
+            alasan ini, biasanya polutan ini menimbulkan ancaman kesehatan
+            terbesar.
+          </p>
+
+          <h3>Dari mana ia datang?</h3>
+          <p>
+            Sumber dapat berasal dari sumber buatan manusia, sumber daya alam
+            atau diciptakan oleh polutan lainnya
+          </p>
+          <ul class="plain">
+            <li>Pembakaran yang dihasilkan dari pembangkit listrik</li>
+            <li>Asap dan jelaga dari kebakaran hutan dan limbah pembakaran</li>
+            <li>Emisi kendaraan dan pembakaran dari motor</li>
+            <li>
+              Proses industri yang melibatkan reaksi kimia antara gas (sulfur
+              dioksida, nitrogen oksida, dan senyawa organik yang mudah menguap)
+            </li>
+          </ul>
+
+          <h3>Bagaimana ia mempengaruhi kesehatan kita?</h3>
+          <p><strong>Efek jangka pendek:</strong></p>
+          <ul class="plain">
+            <li>Iritasi pada mata, tenggorokan, dan hidung</li>
+            <li>Detak jantung tidak teratur</li>
+            <li>Batuk, nyeri dada, sakit tenggorokan, sesak napas</li>
+            <li>Serangan asma</li>
+          </ul>
+          <p><strong>Efek jangka panjang:</strong></p>
+          <ul class="plain">
+            <li>Penyakit pernafasan seperti bronkitis, asma, emfisema</li>
+            <li>Kerusakan jaringan paru-paru</li>
+            <li>Kanker</li>
+            <li>Serangan jantung</li>
+            <li>Stroke</li>
+            <li>Kematian dini</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-pm10" class="edu-modal-overlay">
+      <div class="edu-modal-content">
+        <button
+          class="close-icon"
+          onclick="closeModal('modal-pm10')"
+          aria-label="Tutup"
+        >
+          <i data-feather="x"></i>
+        </button>
+        <h2>Apa itu PM10?</h2>
+        <p class="subtitle">Partikel kasar (≤ 10 µm)</p>
+
+        <div class="edu-modal-body">
+          <h3>Apa itu PM10?</h3>
+          <p>
+            PM10 adalah partikel di udara dengan diameter 10 mikrometer atau
+            kurang (termasuk asap, jelaga, garam, asam, dan logam). Perbedaan
+            antara PM10 dan PM2.5 hanya pada ukurannya - dimana PM2.5 sangat
+            halus, sedangkan PM10 lebih besar dan kasar.
+          </p>
+
+          <h3>Dari mana ia datang?</h3>
+          <ul class="plain">
+            <li>
+              Debu dari konstruksi, pertanian dan tempat pembuangan sampah
+            </li>
+            <li>Debu yang tertiup dari lahan terbuka</li>
+            <li>Asap dari kebakaran hutan dan limbah pembakaran</li>
+            <li>Reaksi kimia dari industri</li>
+            <li>Gas dari kendaraan bermotor</li>
+          </ul>
+
+          <h3>Bagaimana ia mempengaruhi kesehatan kita?</h3>
+          <p><strong>Efek jangka pendek:</strong></p>
+          <ul class="plain">
+            <li>Kesulitan bernapas</li>
+            <li>Sakit dada</li>
+            <li>Ketidaknyamanan pernapasan</li>
+            <li>Sakit tenggorokan</li>
+            <li>Hidung tersumbat</li>
+          </ul>
+          <p><strong>Efek jangka panjang:</strong></p>
+          <ul class="plain">
+            <li>Kerusakan jaringan paru-paru</li>
+            <li>Kanker</li>
+            <li>Asma</li>
+            <li>Kematian dini</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-ozon" class="edu-modal-overlay">
+      <div class="edu-modal-content">
+        <button
+          class="close-icon"
+          onclick="closeModal('modal-ozon')"
+          aria-label="Tutup"
+        >
+          <i data-feather="x"></i>
+        </button>
+        <h2>Apa itu Ozon?</h2>
+        <p class="subtitle">Ozon</p>
+
+        <div class="edu-modal-body">
+          <h3>Apa itu Ozon?</h3>
+          <p>
+            Ozon (O₃) adalah gas yang dibentuk oleh radiasi ultraviolet (sinar
+            matahari) dan molekul oksigen. Ozon adalah senyawa alam yang
+            berperan penting dalam menghalangi sinar UV yang berbahaya dari
+            matahari - namun, pada dasarnya ozon adalah racun.
+          </p>
+
+          <h3>Dari mana ia datang?</h3>
+          <p>
+            Sementara polutan lainnya dipancarkan langsung ke udara oleh
+            berbagai sumber, ozon hanya dibuat oleh sinar matahari yang bereaksi
+            nitrogen oksida (NO) dan senyawa organik volatil (VOC) di atmosfer.
+            Untuk alasan ini, ozon adalah yang paling luas dan paling sulit
+            untuk dikendalikan dari enam polutan.
+          </p>
+
+          <h3>Bagaimana ia mempengaruhi kesehatan kita?</h3>
+          <p><strong>Efek jangka pendek:</strong></p>
+          <ul class="plain">
+            <li>Sesak napas</li>
+            <li>Nyeri saat menarik napas dalam-dalam</li>
+            <li>Mengi dan batuk</li>
+          </ul>
+          <p><strong>Efek jangka panjang:</strong></p>
+          <ul class="plain">
+            <li>Penurunan fungsi paru-paru</li>
+            <li>Radang selaput paru-paru</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- Edu Modal Containers End -->
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      feather.replace();
+    </script>
+    <script src="js/data.js"></script>
+    <script src="js/peringatan.js"></script>
+    <script src="js/lapor.js"></script>
+    <script src="js/script.js"></script>
+  </body>
+</html>
