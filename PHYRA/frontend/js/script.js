@@ -243,7 +243,7 @@ const visible = () =>
 
 async function loadSimulationRisk(horizon = currentHorizon) {
   try {
-    const url = `${CONFIG.SIMULATION_RISK_URL || "http://127.0.0.1:8000/v1/simulation/risk"}?horizon=${horizon}`;
+    const url = `${CONFIG.SIMULATION_RISK_URL || `${CONFIG.API_BASE || ""}/v1/simulation/risk`}?horizon=${horizon}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
@@ -535,7 +535,7 @@ async function loadDistricts() {
   try {
     const url =
       CONFIG.DISTRICTS_GEOJSON_URL ||
-      "http://127.0.0.1:8000/v1/districts/geojson";
+      `${CONFIG.API_BASE || ""}/v1/districts/geojson`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("HTTP " + res.status);
     const geojson = await res.json();
@@ -612,7 +612,7 @@ async function openDistrictSummary(props, latlng) {
   try {
     const summaryUrl =
       (CONFIG.KECAMATAN_SUMMARY_URL ||
-        "http://127.0.0.1:8000/v1/kecamatan") +
+        `${CONFIG.API_BASE || ""}/v1/kecamatan`) +
       "/" +
       encodeURIComponent(gid_3) +
       "/summary" +

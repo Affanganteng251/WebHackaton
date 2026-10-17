@@ -6,6 +6,8 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.database import (
@@ -55,12 +57,7 @@ app = FastAPI(
 # Jika Live Server memakai port lain, tambahkan origin yang sesuai.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://127.0.0.1:5500",
-        "http://localhost:5500",
-        "http://127.0.0.1:5501",
-        "http://localhost:5501",
-    ],
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -156,13 +153,13 @@ class SubscriptionCreate(BaseModel):
 
 
 
-@app.get("/")
+@app.get("/v1")
 def root():
     return {
         "message": "API Pemantauan Titik Api Kalimantan aktif",
-        "data_mode": "dummy",
+        "data_mode": "database",
         "docs": "/docs",
-        "warning": "Semua data saat ini adalah data dummy, bukan kejadian nyata.",
+        "warning": "Gunakan mode Realtime atau Simulasi untuk visualisasi titik api dan risiko kebakaran.",
     }
 
 
@@ -734,4 +731,25 @@ def get_notification_kill_switch(_auth: bool = Depends(verify_admin_key)):
         "reason": res["reason"],
         "data_mode": "database",
     }
+
+
+# ==========================================
+# MOUNT FRONTEND STATIC FILES
+# ==========================================
+frontend_candidates = [
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "frontend"),
+    os.path.join(os.getcwd(), "frontend"),
+    os.path.abspath("frontend"),
+]
+frontend_path = None
+for candidate in frontend_candidates:
+    if os.path.exists(candidate) and os.path.isdir(candidate):
+        frontend_path = candidate
+        break
+
+if frontend_path:
+    # Mount sub-direktori frontend untuk direct URL /frontend/*
+    app.mount("/frontend", StaticFiles(directory=frontend_path, html=True), name="frontend_sub")
+    # Mount root untuk direct URL / (index.html, css/, js/, img/)
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend_root")
 

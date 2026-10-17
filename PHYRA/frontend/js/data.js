@@ -7,17 +7,32 @@
   "hotspots": [{ lat, lng }] untuk titik merah di peta (mis. dari SiPongi
   atau NASA FIRMS).
 */
+const getApiBase = () => {
+  if (typeof window === "undefined") return "http://127.0.0.1:8000";
+  if (window.location.hostname !== "127.0.0.1" && window.location.hostname !== "localhost") {
+    return "";
+  }
+  if (window.location.port === "8000") {
+    return "";
+  }
+  return "http://127.0.0.1:8000";
+};
+
+const API_BASE = getApiBase();
+
 const CONFIG = {
-  // false = ambil hotspot dari FastAPI lokal saat pengembangan
+  // false = ambil hotspot dari FastAPI saat produksi/pengembangan
   USE_SAMPLE: false,
   DATA_MODE: "database", // 'database' (default) atau 'simulation'
-  API_URL: "http://127.0.0.1:8000/v1/hotspots",
-  DISTRICTS_GEOJSON_URL: "http://127.0.0.1:8000/v1/districts/geojson",
-  KECAMATAN_SUMMARY_URL: "http://127.0.0.1:8000/v1/kecamatan",
-  SIMULATION_STATUS_URL: "http://127.0.0.1:8000/v1/simulation/status",
-  SIMULATION_HOTSPOTS_URL: "http://127.0.0.1:8000/v1/simulation/hotspots",
-  SIMULATION_RISK_URL: "http://127.0.0.1:8000/v1/simulation/risk",
-  SIMULATION_SUMMARY_URL: "http://127.0.0.1:8000/v1/simulation/kecamatan",
+  API_BASE: API_BASE,
+  API_URL: `${API_BASE}/v1/hotspots`,
+  DISTRICTS_GEOJSON_URL: `${API_BASE}/v1/districts/geojson`,
+  KECAMATAN_SUMMARY_URL: `${API_BASE}/v1/kecamatan`,
+  SIMULATION_STATUS_URL: `${API_BASE}/v1/simulation/status`,
+  SIMULATION_HOTSPOTS_URL: `${API_BASE}/v1/simulation/hotspots`,
+  SIMULATION_RISK_URL: `${API_BASE}/v1/simulation/risk`,
+  SIMULATION_SUMMARY_URL: `${API_BASE}/v1/simulation/kecamatan`,
+  META_STATUS_URL: `${API_BASE}/v1/meta/status`,
 };
 
 /*
@@ -295,7 +310,7 @@ async function fetchFireData() {
 
   let metaStatus = null;
   try {
-    const metaUrl = isSimulation ? CONFIG.SIMULATION_STATUS_URL : "http://127.0.0.1:8000/v1/meta/status";
+    const metaUrl = isSimulation ? CONFIG.SIMULATION_STATUS_URL : CONFIG.META_STATUS_URL;
     const metaRes = await fetch(metaUrl);
     if (metaRes.ok) {
       metaStatus = await metaRes.json();
